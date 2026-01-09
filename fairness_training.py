@@ -23,8 +23,8 @@ def train_fair_mf_mpr(
     oracle_sensitive_attr,
     top_K,
     fair_reg,
-    c0_known,
-    c1_known,
+    s0_known,
+    s1_known,
     device,
     evaluation_epoch=3,
     unsqueeze=False,
@@ -107,7 +107,7 @@ def train_fair_mf_mpr(
         # Evaluation
         if epoch % evaluation_epoch == 0:
             rmse_val, naive_unfairness_val = validate_fairness(
-                model, valid_data, oracle_sensitive_attr, c0_known, c1_known, device
+                model, valid_data, oracle_sensitive_attr, s0_known, s1_known, device
             )
             rmse_test, naive_unfairness_test = test_fairness(
                 model, test_data, oracle_sensitive_attr, device

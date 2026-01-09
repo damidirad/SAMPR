@@ -76,8 +76,6 @@ beta = args.beta
 # random_samples = 100
 top_K = args.top_K
 
-
-
 data_path = args.data_path
 train_data = pd.read_csv(train_csv_path,dtype=np.int64)
 valid_data = pd.read_csv(valid_csv_path,dtype=np.int64)
@@ -86,7 +84,6 @@ orig_sensitive_attr = pd.read_csv(sensitive_csv_path,dtype=np.int64)
 sensitive_attr = pd.read_csv(sensitive_csv_random_path,dtype=np.int64)
 s0_known =  sensitive_attr[sensitive_attr["gender"] == 0]["user_id"].to_numpy()[: int(args.partial_ratio_s0 * sum(sensitive_attr["gender"] == 0))]
 s1_known =  sensitive_attr[sensitive_attr["gender"] == 1]["user_id"].to_numpy()[: int(args.partial_ratio_s1 * sum(sensitive_attr["gender"] == 1))]
-
 
 num_uniqueUsers = max(train_data.user_id) + 1
 num_uniqueLikes = max(train_data.item_id) + 1

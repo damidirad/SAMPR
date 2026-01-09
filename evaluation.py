@@ -78,5 +78,6 @@ def test_fairness(model, df_val, df_sensitive_attr, device):
 
         naive_gender_unfairness = float(np.abs(np.mean(naive_fairness_dict[1]) - (np.mean(naive_fairness_dict[0]))))
         rmse_result = RMSE(y_true_all, y_pred_all)
+        
     return rmse_result, naive_gender_unfairness
 

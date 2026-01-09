@@ -16,7 +16,7 @@ class AmortizedSST(nn.Module):
         torch.Tensor: Predicted sensitive attribute probabilities of shape (batch_size, 1).
     """
     def __init__(self, emb_size):
-        super(AmortizedSST, self).__init__()
+        super().__init__()
 
         self.fc = nn.Sequential(
             nn.Linear(emb_size + 1, 32),

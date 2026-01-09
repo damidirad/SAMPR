@@ -52,7 +52,7 @@ sensitive_csv_path = os.path.join(path_to_dataset,"sensitive_attribute.csv")
 sensitive_csv_random_path = os.path.join(path_to_dataset,"sensitive_attribute_random.csv")
 
 
-#The function below ensures that we seed all random generators with the same value to get reproducible results
+# The function below ensures that we seed all random generators with the same value to get reproducible results
 def set_random_seed(state=1):
     gens = (random.seed, np.random.seed, torch.manual_seed, torch.cuda.manual_seed)
     for set_state in gens:
@@ -138,6 +138,7 @@ train_amortized_sst(
 )
 
 # Pretrain MF model with Multiple Prior Robust Optimization and evaluate on validation and test set
+print("Start training fair MF model with MPR...")
 val_rmse, test_rmse, best_unf, unf_test, best_epoch, best_model = \
     train_fair_mf_mpr(
         model=MF_model, 

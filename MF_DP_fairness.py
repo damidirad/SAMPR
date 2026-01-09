@@ -31,8 +31,8 @@ parser.add_argument("--saving_path", type=str, default= "./orig_MF_temp", help= 
 parser.add_argument("--result_csv", type=str, default="./orig_MF_temp/result.csv", help="the path for saving result")
 parser.add_argument("--data_path", type=str, default="./datasets/ml-1m/", help= "the data path")
 parser.add_argument("--fair_reg", type=float, default= 0, help= "the regulator for fairness, when fair_reg equals to 0, means MF without fairness regulation")
-parser.add_argument("--partial_ratio_male", type=float, default= 1, help= "the known ratio for training sensitive attr male ")
-parser.add_argument("--partial_ratio_female", type=float, default= 1, help= "the known ratio for training sensitive attr female ")
+parser.add_argument("--partial_ratio_s0", type=float, default= 1, help= "the known ratio for training sensitive attr s0 ")
+parser.add_argument("--partial_ratio_s1", type=float, default= 1, help= "the known ratio for training sensitive attr s1 ")
 parser.add_argument("--task_type",type=str,default="ml-1m",help="Specify task type: ml-1m/tenrec/Lastfm(Lastfm-1K)/Lastfm-360K")
 parser.add_argument("--early_stop", type=int, default=10)
 
@@ -62,7 +62,7 @@ task_type = args.task_type
 # random_samples = 100
 top_K = args.top_K
 
-def validate_fairness_rmse(model, df_train, epochs, lr, weight_decay, batch_size, valid_data, test_data, sensitive_attr, top_K, fair_reg, gender_known_male, gender_known_female, evaluation_epoch=10, unsqueeze=False, shuffle=True, early_stop=10):
+def validate_fairness_rmse(model, df_train, epochs, lr, weight_decay, batch_size, valid_data, test_data, sensitive_attr, top_K, fair_reg, s0_known, s1_known, evaluation_epoch=10, unsqueeze=False, shuffle=True, early_stop=10):
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     model.train()
@@ -94,18 +94,17 @@ def validate_fairness_rmse(model, df_train, epochs, lr, weight_decay, batch_size
             loss_total += loss.item()
                  
             # fairness regulation
-            # partial female average pred:
-            known_female = np.isin(data_batch["user_id"], gender_known_female)
-            know_female_pred_mean = y_hat[known_female].mean()
+            # partial s1 average pred:
+            s1_known = np.isin(data_batch["user_id"], s1_known)
+            s1_known_pred_mean = y_hat[s1_known].mean()
 
-            # partial male average pred:
-            known_male = np.isin(data_batch["user_id"], gender_known_male)
+            # partial s0 average pred:
+            s0_known = np.isin(data_batch["user_id"], s0_known)
+            s0_known_pred_mean = y_hat[s0_known].mean()
 
-            know_male_pred_mean = y_hat[known_male].mean()
-            
-            # if no male or female, then the regulation is set to 0
-            if sum(known_female) * sum(known_male) != 0:
-                fair_regulation = torch.abs(know_female_pred_mean - know_male_pred_mean) * fair_reg
+            # if no s0 or s1, then the regulation is set to 0
+            if sum(s1_known) * sum(s0_known) != 0:
+                fair_regulation = torch.abs(s1_known_pred_mean - s0_known_pred_mean) * fair_reg
             else:
                 fair_regulation = torch.tensor(0)
 
@@ -117,7 +116,7 @@ def validate_fairness_rmse(model, df_train, epochs, lr, weight_decay, batch_size
             j = j+1
         print('epoch: ', idx, 'average loss: ',loss_total/ j, "fair reg:", fair_reg_total/j)
         if idx % evaluation_epoch == 0 :
-            rmse_val, naive_unfairness_val = validate_fairness(model, valid_data, sensitive_attr, gender_known_male, gender_known_female, top_K, device)
+            rmse_val, naive_unfairness_val = validate_fairness(model, valid_data, sensitive_attr, s0_known, s1_known, top_K, device)
             rmse_test, naive_unfairness_test = test_fairness(model, test_data, sensitive_attr, top_K, device)
             print('epoch: ', idx, 'validation rmse:', rmse_val, 'Unfairness:', naive_unfairness_val)
             print('epoch: ', idx, 'test rmse:', rmse_test, "Unfairness:", naive_unfairness_test)
@@ -149,18 +148,11 @@ train_data = pd.read_csv(data_path + "train.csv",dtype=np.int64)
 valid_data = pd.read_csv(data_path + "valid.csv",dtype=np.int64)
 test_data = pd.read_csv(data_path + "test.csv",dtype=np.int64)
 sensitive_attr = pd.read_csv(data_path + "sensitive_attribute.csv",dtype=np.int64)
-random_gender_attr = pd.read_csv(data_path + "sensitive_attribute_random.csv",dtype=np.int64)
-
-# generating sensitive attr mask for training
-# gender_known_male =  sensitive_attr[sensitive_attr["gender"] == 0]["user_id"].to_numpy()[: int(args.partial_ratio_male * sum(sensitive_attr["gender"] == 0))]
-# gender_known_female =  sensitive_attr[sensitive_attr["gender"] == 1]["user_id"].to_numpy()[: int(args.partial_ratio_female * sum(sensitive_attr["gender"] == 1))]
-# sensitive_attr["gender"]
-# args.partial_ratio_male
+random_sens_attr = pd.read_csv(data_path + "sensitive_attribute_random.csv",dtype=np.int64)
 
 # generating sensitive attr mask from shuffled gender list
-gender_known_male =  random_gender_attr[random_gender_attr["gender"] == 0]["user_id"].to_numpy()[: int(args.partial_ratio_male * sum(random_gender_attr["gender"] == 0))]
-gender_known_female =  random_gender_attr[random_gender_attr["gender"] == 1]["user_id"].to_numpy()[: int(args.partial_ratio_female * sum(random_gender_attr["gender"] == 1))]
-
+s0_known =  random_sens_attr[random_sens_attr["gender"] == 0]["user_id"].to_numpy()[: int(args.partial_ratio_s0 * sum(random_sens_attr["gender"] == 0))]
+s1_known =  random_sens_attr[random_sens_attr["gender"] == 1]["user_id"].to_numpy()[: int(args.partial_ratio_s1 * sum(random_sens_attr["gender"] == 1))]
 
 num_uniqueUsers = max(train_data.user_id) + 1
 # num_uniqueLikes = len(train_data.like_id.unique())
@@ -181,7 +173,7 @@ MF_model = matrixFactorization(np.int64(num_uniqueUsers), np.int64(num_uniqueLik
 
 best_val_rmse, test_rmse_in_that_epoch, unfairness_val, unfairness_test, best_epoch, best_model = \
         validate_fairness_rmse(MF_model,train_data,num_epochs,learning_rate, weight_decay, batch_size, valid_data, \
-            test_data, sensitive_attr, top_K, fair_reg ,gender_known_male, gender_known_female, evaluation_epoch= evaluation_epoch, unsqueeze=True)
+            test_data, sensitive_attr, top_K, fair_reg, s0_known, s1_known, evaluation_epoch= evaluation_epoch, unsqueeze=True)
 
 os.makedirs(args.saving_path, exist_ok= True)
 torch.save(best_model.state_dict(), args.saving_path + "/MF_orig_model")

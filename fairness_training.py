@@ -23,8 +23,8 @@ def train_fair_mf_mpr(
     oracle_sensitive_attr,
     top_K,
     fair_reg,
-    gender_known_male,
-    gender_known_female,
+    c0_known,
+    c1_known,
     device,
     evaluation_epoch=3,
     unsqueeze=False,
@@ -44,7 +44,7 @@ def train_fair_mf_mpr(
 
     num_batches = len(df_train) // batch_size
 
-    for epoch in tqdm(range(epochs)):
+    for epoch in tqdm(range(epochs), desc="Training Fair MF with MPR"):
         loss_total = 0.0
         fair_reg_total = 0.0
 
@@ -107,7 +107,7 @@ def train_fair_mf_mpr(
         # Evaluation
         if epoch % evaluation_epoch == 0:
             rmse_val, naive_unfairness_val = validate_fairness(
-                model, valid_data, oracle_sensitive_attr, gender_known_male, gender_known_female, top_K, device
+                model, valid_data, oracle_sensitive_attr, c0_known, c1_known, top_K, device
             )
             rmse_test, naive_unfairness_test = test_fairness(
                 model, test_data, oracle_sensitive_attr, top_K, device

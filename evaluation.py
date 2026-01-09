@@ -8,16 +8,16 @@ def RMSE(y_true, y_pred):
 # prob = y_hat
 # labels = test_rating
 
-# evaluation gender classifier
+# evaluation classifier
 def evaluation_gender(data, label, model):
     model.eval()
     pred = model(data)
     pred_out = pred.argmax(1)
     acc = round(sum(pred_out == label).item()/(pred_out.shape[0]) * 100, 2)
-    pred_male_female_ratio = ((sum(pred_out == 0).item() + 1e-2)/(sum(pred_out == 1).item() + 1e-2))
-    return acc, pred_male_female_ratio
+    pred_s0_s1_ratio = ((sum(pred_out == 0).item() + 1e-2)/(sum(pred_out == 1).item() + 1e-2))
+    return acc, pred_s0_s1_ratio
 
-def validate_fairness(model, df_val, df_sensitive_attr, gender_known_male, gender_known_female, top_K, device):
+def validate_fairness(model, df_val, df_sensitive_attr, s1_known, s0_known, top_K, device):
     model.eval()
     with torch.no_grad():
         test_user_total = torch.tensor(np.array(df_val["user_id"])).to(device)
@@ -41,7 +41,7 @@ def validate_fairness(model, df_val, df_sensitive_attr, gender_known_male, gende
                 y_hat_sort_id = y_hat.sort(descending=True).indices
                 label_rank = test_rating[y_hat_sort_id]
                 uniq_count += 1
-            if (name in gender_known_male) or (name in gender_known_female): 
+            if (name in s0_known) or (name in s1_known  ): 
                 gender = int(df_sensitive_dict.iloc[name]["gender"])
                 naive_fairness_dict[gender] += y_hat.tolist()
                 fairness_count += 1

@@ -41,7 +41,7 @@ parser.add_argument("--early_stop", type=int, default=10)
 parser.add_argument("--predict_sst_path", type=str, default="./predict_sst_diff_seed_batch/", help="the path for predicted sst")
 
 args = parser.parse_args()
-import os,sys 
+import os
 cur_path = os.getcwd()
 path_to_dataset = os.path.join(cur_path,"datasets",args.task_type)
 assert os.path.exists(path_to_dataset)

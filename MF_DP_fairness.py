@@ -67,11 +67,7 @@ def validate_fairness_rmse(model, df_train, epochs, lr, weight_decay, batch_size
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     model.train()
     best_val_rmse = 100
-    test_ndcg_in_that_epoch = 0
     test_rmse_in_that_epoch = 0
-    val_UAUC_in_that_epoch = 0
-    val_ndcg_in_that_epoch = 0
-    test_UAUC_in_that_epoch = 0
     best_epoch = 0
     naive_unfairness_val_in_that_epoch = 0
     naive_unfairness_test_in_that_epoch = 0
@@ -182,10 +178,6 @@ MF_model = matrixFactorization(np.int64(num_uniqueUsers), np.int64(num_uniqueLik
 # batch_size = batch_size
 # # num_negatives = num_negatives
 # unsqueeze=True
-
-print(args)
-
-
 
 best_val_rmse, test_rmse_in_that_epoch, unfairness_val, unfairness_test, best_epoch, best_model = \
         validate_fairness_rmse(MF_model,train_data,num_epochs,learning_rate, weight_decay, batch_size, valid_data, \

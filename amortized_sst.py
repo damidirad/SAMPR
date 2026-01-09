@@ -1,9 +1,19 @@
 import torch
 from torch import nn
 import numpy as np
-
-# Amortized model for predicting sensitive attribute from user embeddings and prior
 class AmortizedSST(nn.Module):
+    """
+    Amortized model that takes user embeddings and prior belief about sensitive attribute
+    and predicts the sensitive attribute using a feedforward neural network.
+
+    Args:
+        emb_size (int): Size of the user embedding vector.
+    Inputs:
+        z_u (torch.Tensor): User embedding of shape (batch_size, emb_size).
+        p0 (float): Prior belief about the sensitive attribute (e.g., probability of being in class 1).
+    Outputs:
+        torch.Tensor: Predicted sensitive attribute probabilities of shape (batch_size, 1).
+    """
     def __init__(self, emb_size):
         super(AmortizedSST, self).__init__()
 

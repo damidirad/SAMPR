@@ -6,9 +6,6 @@ Original author: islam
 
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torch.autograd import Variable
-import torch.nn.functional as F
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -80,15 +77,3 @@ class matrixFactorization(nn.Module):
         b_u = self.user_bias(u).squeeze()
         b_v = self.item_bias(v).squeeze()
         return (U*V).sum(1) +  b_u  + b_v
-class sst_pred(nn.Module):
-    def __init__(self, inputsize, hidden_embed, outsize):
-        super(sst_pred, self).__init__()
-        self.first_layer = nn.Linear(inputsize, hidden_embed)
-        self.second_layer = nn.Linear(hidden_embed, outsize)
-        
-    def forward(self, x):
-        temp = self.first_layer(x)
-        temp = nn.ReLU()(temp)
-        temp = self.second_layer(temp)
-
-        return temp

@@ -54,8 +54,8 @@ def train_amortized_sst(sst_model, mf_model, s0, s1, epochs=20, device='cuda'):
         preds = sst_model(z_u, p1).view(-1)
         
         # weighting for importance sampling
-        # Weight for class 1: p1 / hat_p1
-        # Weight for class 0: (1-p1) / (1-hat_p1)
+        # weight for class 1: p1 / hat_p1
+        # weight for class 0: (1-p1) / (1-hat_p1)
         weights = torch.where(labels == 1, p1 / hat_p1, (1 - p1) / (1 - hat_p1))
         
         loss = (criterion(preds, labels) * weights).mean()

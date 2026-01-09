@@ -26,9 +26,19 @@ class AmortizedSST(nn.Module):
         )
         
     def forward(self, z_u, p0):
-        # Concatenate embedding and prior belief
-        p0_expanded = torch.full((z_u.size(0), 1), p0).to(z_u.device) # expand to match batch size
+        # check if p0 is already a tensor matched to our batch size
+        if isinstance(p0, torch.Tensor):
+            # if tensor of shape (batch,), reshape to (batch, 1)
+            if p0.dim() == 1:
+                p0_expanded = p0.view(-1, 1)
+            else:
+                p0_expanded = p0
+        else:
+            # if single number, use
+            p0_expanded = torch.full((z_u.size(0), 1), p0).to(z_u.device)
+
         x = torch.cat([z_u, p0_expanded], dim=1)
+
         return self.fc(x)
     
 def train_amortized_sst(sst_model, mf_model, s0, s1, epochs=20, device='cuda'):
@@ -45,7 +55,7 @@ def train_amortized_sst(sst_model, mf_model, s0, s1, epochs=20, device='cuda'):
     sst_model.train()
     for _ in tqdm(range(epochs), desc="Training Amortized SST"):
         # get embeddings
-        z_u = mf_model.user_embeddings(user_ids).detach()
+        z_u = mf_model.user_emb(user_ids).detach()
         
         # sample random prior for each batch
         p1 = np.random.uniform(0.1, 0.9)

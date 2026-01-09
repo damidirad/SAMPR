@@ -5,9 +5,6 @@ from sklearn.metrics import mean_squared_error
 def RMSE(y_true, y_pred):
     return np.sqrt(mean_squared_error(y_true, y_pred))
 
-# prob = y_hat
-# labels = test_rating
-
 # evaluation classifier
 def evaluation_gender(data, label, model):
     model.eval()

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-# orig name : MF_explicit_fairness_fast_eval_partial_shuffle_rmse_early_stop
 import argparse
 import numpy as np
 import pandas as pd
@@ -25,7 +23,6 @@ parser.add_argument("--learning_rate", type= float, default= 1e-3, help="the lea
 parser.add_argument("--batch_size", type= int, default= 32768, help= "the batchsize for training")
 parser.add_argument("--evaluation_epoch", type= int, default= 3, help= "the evaluation epoch")
 parser.add_argument("--weight_decay", type= float, default= 1e-7, help= "the weight_decay for training")
-parser.add_argument("--top_K", type=int, default= 5, help="the NDCG evaluation @ K")
 parser.add_argument('--seed', type=int, default=1, help="the random seed")
 parser.add_argument("--saving_path", type=str, default= "./orig_MF_temp", help= "the saving path for model")
 parser.add_argument("--result_csv", type=str, default="./orig_MF_temp/result.csv", help="the path for saving result")
@@ -34,7 +31,6 @@ parser.add_argument("--fair_reg", type=float, default= 0, help= "the regulator f
 parser.add_argument("--partial_ratio_s0", type=float, default= 1, help= "the known ratio for training sensitive attr s0 ")
 parser.add_argument("--partial_ratio_s1", type=float, default= 1, help= "the known ratio for training sensitive attr s1 ")
 parser.add_argument("--task_type",type=str,default="ml-1m",help="Specify task type: ml-1m/tenrec/Lastfm(Lastfm-1K)/Lastfm-360K")
-parser.add_argument("--early_stop", type=int, default=10)
 
 
 args = parser.parse_args()
@@ -59,10 +55,8 @@ evaluation_epoch = args.evaluation_epoch
 weight_decay = args.weight_decay
 fair_reg = args.fair_reg
 task_type = args.task_type 
-# random_samples = 100
-top_K = args.top_K
 
-def validate_fairness_rmse(model, df_train, epochs, lr, weight_decay, batch_size, valid_data, test_data, sensitive_attr, top_K, fair_reg, s0_known, s1_known, evaluation_epoch=10, unsqueeze=False, shuffle=True, early_stop=10):
+def validate_fairness_rmse(model, df_train, epochs, lr, weight_decay, batch_size, valid_data, test_data, sensitive_attr, fair_reg, s0_known, s1_known, evaluation_epoch=10, unsqueeze=False, shuffle=True):
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     model.train()
@@ -71,7 +65,6 @@ def validate_fairness_rmse(model, df_train, epochs, lr, weight_decay, batch_size
     best_epoch = 0
     naive_unfairness_val_in_that_epoch = 0
     naive_unfairness_test_in_that_epoch = 0
-    stop_epoch = 0
     for idx in range(epochs):
         j = 0
         loss_total = 0
@@ -122,18 +115,12 @@ def validate_fairness_rmse(model, df_train, epochs, lr, weight_decay, batch_size
             print('epoch: ', idx, 'test rmse:', rmse_test, "Unfairness:", naive_unfairness_test)
 
             if rmse_val < best_val_rmse:
-                stop_epoch = 0
                 best_val_rmse = rmse_val
                 test_rmse_in_that_epoch = rmse_test
                 best_epoch = idx
                 naive_unfairness_val_in_that_epoch = naive_unfairness_val
                 naive_unfairness_test_in_that_epoch = naive_unfairness_test
                 best_model = copy.deepcopy(model)
-            else:
-                stop_epoch += 1
-                if stop_epoch == early_stop:
-                    print("early stop!")
-                    return best_val_rmse, test_rmse_in_that_epoch, naive_unfairness_val_in_that_epoch, naive_unfairness_test_in_that_epoch, best_epoch, best_model
 
     return best_val_rmse, test_rmse_in_that_epoch, naive_unfairness_val_in_that_epoch, naive_unfairness_test_in_that_epoch, best_epoch, best_model
 
@@ -173,7 +160,7 @@ MF_model = matrixFactorization(np.int64(num_uniqueUsers), np.int64(num_uniqueLik
 
 best_val_rmse, test_rmse_in_that_epoch, unfairness_val, unfairness_test, best_epoch, best_model = \
         validate_fairness_rmse(MF_model,train_data,num_epochs,learning_rate, weight_decay, batch_size, valid_data, \
-            test_data, sensitive_attr, top_K, fair_reg, s0_known, s1_known, evaluation_epoch= evaluation_epoch, unsqueeze=True)
+            test_data, sensitive_attr, fair_reg, s0_known, s1_known, evaluation_epoch= evaluation_epoch, unsqueeze=True)
 
 os.makedirs(args.saving_path, exist_ok= True)
 torch.save(best_model.state_dict(), args.saving_path + "/MF_orig_model")

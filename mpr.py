@@ -26,7 +26,6 @@ parser.add_argument("--learning_rate", type= float, default= 1e-3, help="the lea
 parser.add_argument("--batch_size", type= int, default= 32768, help= "the batchsize for training")
 parser.add_argument("--evaluation_epoch", type= int, default= 3, help= "the evaluation epoch")
 parser.add_argument("--weight_decay", type= float, default= 1e-7, help= "the weight_decay for training")
-parser.add_argument("--top_K", type=int, default= 5, help="the NDCG evaluation @ K")
 parser.add_argument('--seed', type=int, default=1, help="the random seed")
 parser.add_argument("--saving_path", type=str, default= "./debug_MPR_thresh_eval/", help= "the saving path for model")
 parser.add_argument("--result_csv", type=str, default="./debug_MPR_thresh_eval/result_contrast.csv", help="the path for saving result")
@@ -37,10 +36,19 @@ parser.add_argument("--partial_ratio_s1", type=float, default= 0.1, help= "the k
 parser.add_argument("--orig_unfair_model", type=str, default= "./pretrained_model/Lastfm-360K/MF_orig_model")
 parser.add_argument("--gender_train_epoch", type=int, default= 1000, help="the epoch for gender classifier training")
 parser.add_argument("--task_type",type=str,default="Lastfm-360K",help="Specify task type: ml-1m/tenrec/lastfm-1K/lastfm-360K")
-parser.add_argument("--early_stop", type=int, default=10)
-parser.add_argument("--predict_sst_path", type=str, default="./predict_sst_diff_seed_batch/", help="the path for predicted sst")
 
 args = parser.parse_args()
+
+if torch.cuda.is_available():
+    device = torch.device(f"cuda:{args.gpu_id}")
+elif torch.backends.mps.is_available():
+    # enable acceleration on mac chips
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
+
+print(f"Running on device: {device}")
+
 import os
 cur_path = os.getcwd()
 path_to_dataset = os.path.join(cur_path,"datasets",args.task_type)
@@ -61,7 +69,16 @@ def set_random_seed(state=1):
 RANDOM_STATE = args.seed
 set_random_seed(RANDOM_STATE)
 
-device = torch.device("cuda:"+(args.gpu_id))
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+    print("Running on device: MPS")
+elif torch.cuda.is_available():
+    device = torch.device(f"cuda:{args.gpu_id}")
+    print(f"Running on device: CUDA {args.gpu_id}")
+else:
+    device = torch.device("cpu")
+    print("Running on device: CPU")
+
 # set hyperparameters
 saving_path = args.saving_path
 emb_size = args.embed_size
@@ -73,8 +90,7 @@ evaluation_epoch = args.evaluation_epoch
 weight_decay = args.weight_decay
 fair_reg = args.fair_reg
 beta = args.beta 
-# random_samples = 100
-top_K = args.top_K
+
 
 data_path = args.data_path
 train_data = pd.read_csv(train_csv_path,dtype=np.int64)
@@ -150,14 +166,12 @@ val_rmse, test_rmse, best_unf, unf_test, best_epoch, best_model = \
         test_data=test_data,
         resample_range=resample_range, 
         oracle_sensitive_attr=orig_sensitive_attr,
-        top_K=top_K,
         fair_reg=fair_reg,
         s0_known=s0_known,
         s1_known=s1_known,
         device=device,
         evaluation_epoch=evaluation_epoch,
         unsqueeze=True,
-        early_stop=args.early_stop,
         rmse_thresh=rmse_thresh
     )
 

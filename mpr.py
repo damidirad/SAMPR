@@ -32,8 +32,8 @@ parser.add_argument("--saving_path", type=str, default= "./debug_MPR_thresh_eval
 parser.add_argument("--result_csv", type=str, default="./debug_MPR_thresh_eval/result_contrast.csv", help="the path for saving result")
 parser.add_argument("--data_path", type=str, default="./datasets/Lastfm-360K/", help= "the data path")
 parser.add_argument("--fair_reg", type=float, default= 10, help= "the regulator for fairness")
-parser.add_argument("--partial_ratio_male", type=float, default= 0.5, help= "the known ratio for training sensitive attr male ")
-parser.add_argument("--partial_ratio_female", type=float, default= 0.1, help= "the known ratio for training sensitive attr female ")
+parser.add_argument("--partial_ratio_s0", type=float, default= 0.5, help= "the known ratio for training sensitive attr s0 ")
+parser.add_argument("--partial_ratio_s1", type=float, default= 0.1, help= "the known ratio for training sensitive attr s1 ")
 parser.add_argument("--orig_unfair_model", type=str, default= "./pretrained_model/Lastfm-360K/MF_orig_model")
 parser.add_argument("--gender_train_epoch", type=int, default= 1000, help="the epoch for gender classifier training")
 parser.add_argument("--task_type",type=str,default="Lastfm-360K",help="Specify task type: ml-1m/tenrec/lastfm-1K/lastfm-360K")
@@ -84,8 +84,8 @@ valid_data = pd.read_csv(valid_csv_path,dtype=np.int64)
 test_data = pd.read_csv(test_csv_path,dtype=np.int64)
 orig_sensitive_attr = pd.read_csv(sensitive_csv_path,dtype=np.int64)
 sensitive_attr = pd.read_csv(sensitive_csv_random_path,dtype=np.int64)
-gender_known_male =  sensitive_attr[sensitive_attr["gender"] == 0]["user_id"].to_numpy()[: int(args.partial_ratio_male * sum(sensitive_attr["gender"] == 0))]
-gender_known_female =  sensitive_attr[sensitive_attr["gender"] == 1]["user_id"].to_numpy()[: int(args.partial_ratio_female * sum(sensitive_attr["gender"] == 1))]
+s0_known =  sensitive_attr[sensitive_attr["gender"] == 0]["user_id"].to_numpy()[: int(args.partial_ratio_s0 * sum(sensitive_attr["gender"] == 0))]
+s1_known =  sensitive_attr[sensitive_attr["gender"] == 1]["user_id"].to_numpy()[: int(args.partial_ratio_s1 * sum(sensitive_attr["gender"] == 1))]
 
 
 num_uniqueUsers = max(train_data.user_id) + 1
@@ -102,8 +102,8 @@ print(args)
 # here we choose 37 different priors
 resample_range = torch.linspace(0.1, 0.9, 37).to(device)
 
-male_ratio = args.partial_ratio_male 
-female_ratio = args.partial_ratio_female 
+s0_ratio = args.partial_ratio_s0 
+s1_ratio = args.partial_ratio_s1 
 
 # rmse_thresh
 if args.task_type == "Lastfm-360K":
@@ -131,8 +131,8 @@ print("Start training amortized SST classifier...")
 train_amortized_sst(
     sst_model, 
     MF_model, 
-    gender_known_male, 
-    gender_known_female, 
+    s0_known, 
+    s1_known, 
     epochs=20, 
     device=device
 )
@@ -155,8 +155,8 @@ val_rmse, test_rmse, best_unf, unf_test, best_epoch, best_model = \
         oracle_sensitive_attr=orig_sensitive_attr,
         top_K=top_K,
         fair_reg=fair_reg,
-        gender_known_male=gender_known_male,
-        gender_known_female=gender_known_female,
+        s0_known=s0_known,
+        s1_known=s1_known,
         device=device,
         evaluation_epoch=evaluation_epoch,
         unsqueeze=True,

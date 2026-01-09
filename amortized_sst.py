@@ -31,16 +31,16 @@ class AmortizedSST(nn.Module):
         x = torch.cat([z_u, p0_expanded], dim=1)
         return self.fc(x)
     
-def train_amortized_sst(sst_model, mf_model, c0, c1, epochs=20, device='cuda'):
+def train_amortized_sst(sst_model, mf_model, s0, s1, epochs=20, device='cuda'):
     optimizer = torch.optim.Adam(sst_model.parameters(), lr=1e-3)
     criterion = nn.BCELoss(reduction='none') # none to apply weights later
     
     # combined known sensitive attribute data
-    user_ids = torch.cat([torch.tensor(c0), torch.tensor(c1)]).to(device)
-    labels = torch.cat([torch.zeros(len(c0)), torch.ones(len(c1))]).to(device)
+    user_ids = torch.cat([torch.tensor(s0), torch.tensor(s1)]).to(device)
+    labels = torch.cat([torch.zeros(len(s0)), torch.ones(len(s1))]).to(device)
     
     # empirical ratio
-    hat_p1 = len(c1) / (len(c0) + len(c1))
+    hat_p1 = len(s1) / (len(s0) + len(s1))
     
     sst_model.train()
     for _ in tqdm(range(epochs), desc="Training Amortized SST"):

@@ -116,8 +116,8 @@ def validate_fairness_rmse(model, df_train, epochs, lr, weight_decay, batch_size
             j = j+1
         print('epoch: ', idx, 'average loss: ',loss_total/ j, "fair reg:", fair_reg_total/j)
         if idx % evaluation_epoch == 0 :
-            rmse_val, naive_unfairness_val = validate_fairness(model, valid_data, sensitive_attr, s0_known, s1_known, top_K, device)
-            rmse_test, naive_unfairness_test = test_fairness(model, test_data, sensitive_attr, top_K, device)
+            rmse_val, naive_unfairness_val = validate_fairness(model, valid_data, sensitive_attr, s0_known, s1_known, device)
+            rmse_test, naive_unfairness_test = test_fairness(model, test_data, sensitive_attr, device)
             print('epoch: ', idx, 'validation rmse:', rmse_val, 'Unfairness:', naive_unfairness_val)
             print('epoch: ', idx, 'test rmse:', rmse_test, "Unfairness:", naive_unfairness_test)
 

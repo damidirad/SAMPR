@@ -17,7 +17,7 @@ def evaluation_gender(data, label, model):
     pred_s0_s1_ratio = ((sum(pred_out == 0).item() + 1e-2)/(sum(pred_out == 1).item() + 1e-2))
     return acc, pred_s0_s1_ratio
 
-def validate_fairness(model, df_val, df_sensitive_attr, s1_known, s0_known, top_K, device):
+def validate_fairness(model, df_val, df_sensitive_attr, s1_known, s0_known, device):
     model.eval()
     with torch.no_grad():
         test_user_total = torch.tensor(np.array(df_val["user_id"])).to(device)
@@ -50,7 +50,7 @@ def validate_fairness(model, df_val, df_sensitive_attr, s1_known, s0_known, top_
         rmse_result = RMSE(y_true_all, y_pred_all)
     return rmse_result, naive_gender_unfairness
 
-def test_fairness(model, df_val, df_sensitive_attr, top_K, device):
+def test_fairness(model, df_val, df_sensitive_attr, device):
     model.eval()
     with torch.no_grad():
         test_user_total = torch.tensor(np.array(df_val["user_id"])).to(device)

@@ -107,10 +107,10 @@ def train_fair_mf_mpr(
         # Evaluation
         if epoch % evaluation_epoch == 0:
             rmse_val, naive_unfairness_val = validate_fairness(
-                model, valid_data, oracle_sensitive_attr, c0_known, c1_known, top_K, device
+                model, valid_data, oracle_sensitive_attr, c0_known, c1_known, device
             )
             rmse_test, naive_unfairness_test = test_fairness(
-                model, test_data, oracle_sensitive_attr, top_K, device
+                model, test_data, oracle_sensitive_attr, device
             )
             
             print(f"Validation RMSE: {rmse_val:.4f}, Partial Valid Unfairness: {naive_unfairness_val:.4f}")

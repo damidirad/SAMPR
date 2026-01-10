@@ -158,7 +158,7 @@ print("rmse thresh:" + str(rmse_thresh))
 
 # Initialize and train amortized SST model
 sst_model = AmortizedSST(emb_size).to(device)
-print("Start training amortized SST classifier...")
+print("[SST Classifier] Start training amortized SST classifier...")
 train_amortized_sst(
     sst_model, 
     MF_model, 
@@ -169,7 +169,7 @@ train_amortized_sst(
     alpha_max=0.6
 )
 
-print("\nVerifying Amortized SST Performance...")
+print("\n[Calibration] Verifying Amortized SST Performance...")
 evaluate_amortized_sst(
     sst_model, 
     MF_model, 
@@ -179,7 +179,7 @@ evaluate_amortized_sst(
 )
 
 # Pretrain MF model with Multiple Prior Robust Optimization and evaluate on validation and test set
-print("Start training fair MF model with MPR...")
+print("[Fair MF Model] Start training fair MF model with MPR...")
 val_rmse, test_rmse, best_unf, unf_test, best_epoch, best_model = \
     train_fair_mf_mpr(
         model=MF_model, 

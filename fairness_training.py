@@ -58,7 +58,7 @@ def train_fair_mf_mpr(
     p0_flat = resample_tensor.repeat(batch_size, 1).view(-1, 1)
 
     # loop over epochs
-    for epoch in tqdm(range(epochs), desc="Training Fair MF-MPR"):
+    for epoch in tqdm(range(epochs), desc="[Fair MF Model] Training Fair MF-MPR"):
         loss_total = 0.0
         fair_reg_total = 0.0
 
@@ -124,9 +124,9 @@ def train_fair_mf_mpr(
             fair_reg_total += fair_regulation.item()
 
         # print epoch averages
-        print(f"epoch {epoch}: avg loss {loss_total/num_batches:.4f}, avg fair reg {fair_reg_total/num_batches:.4f}")
+        print(f"[Results] Epoch {epoch}: \nAvg Loss {loss_total/num_batches:.4f} \nAvg Fair Reg {fair_reg_total/num_batches:.4f}")
 
-        if epoch > 0 and (epoch % 30 == 0 or (naive_unfairness_test and naive_unfairness_test >= prev_naive_unfairness_test * 0.99)):
+        if epoch > 0 and (epoch % 30 == 0 or (naive_unfairness_test and naive_unfairness_test >= prev_naive_unfairness_test * 0.995)):
             print(f"\n[Adversarial Update] Refining SST on worst priors at epoch {epoch}...")
             
             # use fair diffs from last batch for refinement
@@ -156,9 +156,9 @@ def train_fair_mf_mpr(
             rmse_test, naive_unfairness_test = test_fairness(
                 model, test_data, oracle_sensitive_attr, device
             )
-            
-            print(f"validation rmse: {rmse_val:.4f}, partial valid unfairness: {naive_unfairness_val:.4f}")
-            print(f"test rmse: {rmse_test:.4f}, unfairness: {naive_unfairness_test:.4f}")
+
+            print(f"[Results] Validation RMSE: {rmse_val:.4f}, \nPartial Valid Unfairness: {naive_unfairness_val:.4f} \
+                  \nTest RMSE: {rmse_test:.4f}, \nUnfairness: {naive_unfairness_test:.4f}")
 
             # track best model if rmse threshold is reached
             if rmse_thresh is not None and rmse_val < rmse_thresh:

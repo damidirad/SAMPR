@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from tqdm import tqdm
-import math
+import random
 
 from torch.utils.data import DataLoader, TensorDataset
 class AmortizedSST(nn.Module):
@@ -139,7 +139,7 @@ def evaluate_amortized_sst(sst_model, mf_model, s0_test, s1_test, device):
     with torch.no_grad():
         z_u = mf_model.user_emb(user_ids)
         
-        print("\n--- Amortized Classifier Calibration ---")
+        print("\n[Calibration] Amortized SST Predictions under Different Priors:")
         for p in test_priors:
             preds = sst_model(z_u, p).view(-1)
             print(
@@ -161,7 +161,7 @@ def refine_sst(sst_model, mf_model, s0_known, s1_known, resample_range, fair_dif
     worst_priors = resample_range[top_indices].tolist()
     
     # avoid forgetting by mixing with stable priors
-    active_priors = list(set(worst_priors + [0.1, 0.35, 0.5, 0.65, 0.9]))
+    active_priors = list(set(worst_priors + [0.1, 0.5, 0.9]))
     
     # data
     user_ids = torch.cat([torch.tensor(s0_known), torch.tensor(s1_known)]).to(device)
@@ -171,7 +171,7 @@ def refine_sst(sst_model, mf_model, s0_known, s1_known, resample_range, fair_dif
     # single pass over known data
     z_u = mf_model.user_emb(user_ids).detach()
     
-    for p_val in tqdm(active_priors, desc="Refining SST"):
+    for p_val in tqdm(active_priors, desc="[Adversarial Update] Refining SST"):
         for _ in range(3):
             preds = sst_model(z_u, p_val).view(-1)
             weights = torch.where(labels == 1, p_val / hat_p1, (1 - p_val) / (1 - hat_p1))

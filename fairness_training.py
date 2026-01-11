@@ -28,7 +28,8 @@ def train_fair_mf_mpr(
     evaluation_epoch=3,
     unsqueeze=False,
     shuffle=True,
-    rmse_thresh=None
+    rmse_thresh=None,
+    warmup_epochs=20
 ):
     # binary cross entropy loss for ratings
     criterion = nn.BCELoss()
@@ -54,7 +55,7 @@ def train_fair_mf_mpr(
     num_users = df_train["user_id"].nunique()
 
     # subsample priors
-    PRIOR_SUBSAMPLE_SIZE = 8
+    PRIOR_SUBSAMPLE_SIZE = 14
     FULL_SWEEP_EVERY = 10 # epochs
 
     epoch_worst_history = []
@@ -117,16 +118,7 @@ def train_fair_mf_mpr(
             y_hat = model(train_user_input, train_item_input)
             loss = criterion(y_hat.view(-1), train_ratings.view(-1))
 
-            # # get embeddings
-            # current_user_embs = model.user_emb(train_user_input)
-
-            # # evaluate all priors every step 
-            # user_emb_flat = current_user_embs.repeat_interleave(num_priors, dim=0)
-
-            # with torch.no_grad():
-            #     s_hat_flat = sst_model(user_emb_flat, p0_flat)
-
-            s_hat_all = all_s_hat_all[train_user_input] # get precomputed sst outputs for current users
+            s_hat_all = all_s_hat_all[train_user_input].detach() # get precomputed sst outputs for current users
 
             y_hat_exp = y_hat.unsqueeze(1).expand(-1, num_priors)
 
@@ -144,7 +136,7 @@ def train_fair_mf_mpr(
 
             # log-sum-exp (robust objective)
             C = fair_diffs.max().detach()
-            fair_reg = fair_reg_schedule(epoch, fair_reg_max, warmup=20)
+            fair_reg = fair_reg_schedule(epoch, fair_reg_max, warmup=warmup_epochs)
             fair_regulation = fair_reg * beta * (torch.logsumexp(fair_diffs - C, dim=0) + C)
 
             # total loss
@@ -158,7 +150,7 @@ def train_fair_mf_mpr(
             fair_reg_total += fair_regulation.item()
 
         # print epoch averages
-        print(f"[Epoch {epoch}] Avg loss {loss_total/num_batches:.4f} \n[Epoch {epoch}] Avg fair reg {fair_reg_total/num_batches:.4f}")
+        print(f"[Epoch {epoch}] Avg loss {loss_total/num_batches:.4f} \n[Epoch {epoch}] Avg fairness regulation {fair_reg_total/num_batches:.4f}")
 
         epoch_worst_history.append(epoch_worst_diff)
         epoch_prior_history.append(epoch_worst_prior)
@@ -173,7 +165,7 @@ def train_fair_mf_mpr(
                 for p in sst_model.parameters():
                     p.requires_grad = False
 
-        if epoch > 0 and not sst_frozen and (epoch % 30 == 0):
+        if epoch > 0 and not sst_frozen and (epoch % 20 == 0):
             print(f"\n[Adversarial Update] Refining SST on worst priors at epoch {epoch}...")
             
             # use fair diffs from last batch for refinement
@@ -218,9 +210,8 @@ def train_fair_mf_mpr(
                     naive_unfairness_test_in_that_epoch = naive_unfairness_test
                     best_model = copy.deepcopy(model)
         print(
-            f"[Epoch {epoch}] "
-            f"Worst prior: p={epoch_worst_prior:.3f}, "
-            f"Fairness violation={epoch_worst_diff:.4f}"
+            f"[Epoch {epoch}] Worst prior: p={epoch_worst_prior:.3f}"
+            f"\n[Epoch {epoch}] Fairness violation={epoch_worst_diff:.4f}"
         )
 
     # fallback in case no model reached rmse threshold

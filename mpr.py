@@ -38,6 +38,8 @@ parser.add_argument("--partial_ratio_s1", type=float, default= 0.1, help= "the k
 parser.add_argument("--orig_unfair_model", type=str, default= "./pretrained_model/Lastfm-360K/MF_orig_model")
 parser.add_argument("--gender_train_epoch", type=int, default= 1000, help="the epoch for gender classifier training")
 parser.add_argument("--task_type",type=str,default="Lastfm-360K",help="Specify task type: ml-1m/tenrec/lastfm-1K/lastfm-360K")
+parser.add_argument("--warmup_epochs",type=int,default=20,help="Number of warmup epochs for fairness regularization")
+
 
 args = parser.parse_args()
 
@@ -92,6 +94,7 @@ evaluation_epoch = args.evaluation_epoch
 weight_decay = args.weight_decay
 fair_reg_max = args.fair_reg_max
 beta = args.beta 
+warmup_epochs = args.warmup_epochs
 
 
 data_path = args.data_path
@@ -117,21 +120,22 @@ print(args)
 # initialized model
 
 
-# # the range of priors used in Multiple Prior Guided Robust Optimization
-# # here we choose 37 different priors
-# resample_range = torch.tensor([
-#     0.1, 0.105, 0.11, 0.12, 0.125, 0.13, 0.14, 0.15, 0.17,
-#     0.18, 0.2, 0.22, 0.25, 0.29, 0.33, 0.4, 0.5, 0.67, 0.75,
-#     0.8, 0.82, 0.84, 0.86, 0.88, 0.9, 0.91, 0.92, 0.93, 0.94, 
-#     0.95, 0.96, 0.97, 0.98, 0.985, 0.99, 0.995, 0.999
-# ], dtype=torch.float32).to(device)
+# the range of priors used in Multiple Prior Guided Robust Optimization
+# here we choose 37 different priors
+resample_range = torch.tensor([
+    0.1, 0.105, 0.11, 0.12, 0.125, 0.13, 0.14, 0.15, 0.17,
+    0.18, 0.2, 0.22, 0.25, 0.29, 0.33, 0.4, 0.5, 0.67, 0.75,
+    0.8, 0.82, 0.84, 0.86, 0.88, 0.9, 0.91, 0.92, 0.93, 0.94, 
+    0.95, 0.96, 0.97, 0.98, 0.985, 0.99, 0.995, 0.999
+], dtype=torch.float32).to(device)
 
 # resample_range = torch.linspace(0.01, 0.99, 15).to(device)
-resample_range = torch.tensor([
-    0.1, 0.105, 0.11, 0.14, 0.15, 0.17,
-    0.18, 0.2, 0.22, 0.5, 0.67, 0.75,
-    0.8, 0.82, 0.84, 0.9, 0.91, 0.98, 0.985, 0.99, 0.995, 0.999
-], dtype=torch.float32).to(device)
+
+# resample_range = torch.tensor([
+#     0.1, 0.105, 0.11, 0.14, 0.15, 0.17,
+#     0.18, 0.2, 0.22, 0.5, 0.67, 0.75,
+#     0.8, 0.82, 0.84, 0.9, 0.91, 0.98, 0.985, 0.99, 0.995, 0.999
+# ], dtype=torch.float32).to(device)
 
 s0_ratio = args.partial_ratio_s0 
 s1_ratio = args.partial_ratio_s1 
@@ -152,71 +156,73 @@ elif args.task_type == "ml-1m":
     elif args.seed ==3:
         rmse_thresh = 0.412392938 / 0.98
 else:
-    raise ValueError("Not rmse thresh")
+    raise ValueError("No RMSE threshold specified for this dataset.")
 
-print("rmse thresh:" + str(rmse_thresh))
+print("RMSE threshold:" + str(rmse_thresh))
 
-# Initialize and train amortized SST model
-sst_model = AmortizedSST(emb_size).to(device)
-print("[SST Classifier] Start training amortized SST classifier...")
-train_amortized_sst(
-    sst_model, 
-    MF_model, 
-    s0_known, 
-    s1_known, 
-    epochs=20, 
-    device=device,
-    alpha_max=0.6
-)
-
-# Verify SST performance after training
-print("\n[Calibration] Verifying Amortized SST Performance...")
-evaluate_amortized_sst(
-    sst_model, 
-    MF_model, 
-    s0_known, 
-    s1_known, 
-    device=device
-)
-
-# Pretrain MF model with Multiple Prior Robust Optimization and evaluate on validation and test set
-print("[Fair MF Model] Start training fair MF model with MPR...")
-val_rmse, test_rmse, best_unf, unf_test, best_epoch, best_model = \
-    train_fair_mf_mpr(
-        model=MF_model, 
-        sst_model=sst_model,
-        df_train=train_data,
-        epochs=num_epochs,
-        lr=learning_rate,
-        weight_decay=weight_decay,
-        batch_size=batch_size,
-        beta=beta,
-        valid_data=valid_data,
-        test_data=test_data,
-        resample_range=resample_range, 
-        oracle_sensitive_attr=orig_sensitive_attr,
-        fair_reg_max=fair_reg_max,
-        s0_known=s0_known,
-        s1_known=s1_known,
+if __name__ == "__main__":
+    # Initialize and train amortized SST model
+    sst_model = AmortizedSST(emb_size).to(device)
+    print("[SST Classifier] Start training amortized SST classifier...")
+    train_amortized_sst(
+        sst_model, 
+        MF_model, 
+        s0_known, 
+        s1_known, 
+        epochs=20, 
         device=device,
-        evaluation_epoch=evaluation_epoch,
-        unsqueeze=True,
-        rmse_thresh=rmse_thresh
+        alpha_max=0.6
     )
 
-os.makedirs(args.saving_path, exist_ok= True)
-torch.save(MF_model.state_dict(), args.saving_path + "/MF_model")
-torch.save(best_model.state_dict(), args.saving_path + "/best_model")
+    # Verify SST performance after training
+    print("\n[Calibration] Verifying Amortized SST Performance...")
+    evaluate_amortized_sst(
+        sst_model, 
+        MF_model, 
+        s0_known, 
+        s1_known, 
+        device=device
+    )
 
-csv_folder = ''
-for path in args.result_csv.split("/")[:-1]:
-    csv_folder = os.path.join(csv_folder, path)
+    # Pretrain MF model with Multiple Prior Robust Optimization and evaluate on validation and test set
+    print("[Fair MF Model] Start training fair MF model with MPR...")
+    val_rmse, test_rmse, best_unf, unf_test, best_epoch, best_model = \
+        train_fair_mf_mpr(
+            model=MF_model, 
+            sst_model=sst_model,
+            df_train=train_data,
+            epochs=num_epochs,
+            lr=learning_rate,
+            weight_decay=weight_decay,
+            batch_size=batch_size,
+            beta=beta,
+            valid_data=valid_data,
+            test_data=test_data,
+            resample_range=resample_range, 
+            oracle_sensitive_attr=orig_sensitive_attr,
+            fair_reg_max=fair_reg_max,
+            s0_known=s0_known,
+            s1_known=s1_known,
+            device=device,
+            evaluation_epoch=evaluation_epoch,
+            unsqueeze=True,
+            rmse_thresh=rmse_thresh,
+            warmup_epochs=warmup_epochs
+        )
 
-os.makedirs(csv_folder, exist_ok= True)
+    os.makedirs(args.saving_path, exist_ok= True)
+    torch.save(MF_model.state_dict(), args.saving_path + "/MF_model")
+    torch.save(best_model.state_dict(), args.saving_path + "/best_model")
 
-try:
-    pd.read_csv(args.result_csv)
-except:
-    with open(args.result_csv,"a") as csvfile: 
-        writer = csv.writer(csvfile)
-        writer.writerow(["args", "val_rmse_in_that_epoch", "test_rmse_in_that_epoch", "best_unfairness_val_partial", "unfairness_test", "best_epoch"])
+    csv_folder = ''
+    for path in args.result_csv.split("/")[:-1]:
+        csv_folder = os.path.join(csv_folder, path)
+
+    os.makedirs(csv_folder, exist_ok= True)
+
+    try:
+        pd.read_csv(args.result_csv)
+    except:
+        with open(args.result_csv,"a") as csvfile: 
+            writer = csv.writer(csvfile)
+            writer.writerow(["args", "val_rmse_in_that_epoch", "test_rmse_in_that_epoch", "best_unfairness_val_partial", "unfairness_test", "best_epoch"])

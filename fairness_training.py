@@ -46,25 +46,36 @@ def train_fair_mf_mpr(
     val_rmse_in_that_epoch = float("inf")
     best_epoch = 0
     achieve_rmse_thresh = False
-    prev_naive_unfairness_test = float("inf")
     sst_frozen = False
-    stall_window = 10
-    stall_tol = 1e-3
+    stall_window = 5
+    stall_tol = 5e-3
+
+    num_all_priors = resample_range.shape[0]
+
+    # subsample priors
+    PRIOR_SUBSAMPLE_SIZE = 8
+    FULL_SWEEP_EVERY = 10 # epochs
 
     epoch_worst_history = []
     epoch_prior_history = []
 
     # compute number of batches per epoch
     num_batches = len(df_train) // batch_size
-
-    num_priors = resample_range.size(0)
     eps = 1e-8
-
-    resample_tensor = resample_range.clone().detach().to(device)
-    p0_flat = resample_tensor.repeat(batch_size, 1).view(-1, 1)
 
     # loop over epochs
     for epoch in tqdm(range(epochs), desc="[Fair MF Model] Training Fair MF-MPR"):
+        # subsample priors to speed up computation
+        if epoch % FULL_SWEEP_EVERY == 0:
+            prior_idx = torch.arange(num_all_priors, device=device)
+        else:
+            prior_idx = torch.randperm(num_all_priors, device=device)[:PRIOR_SUBSAMPLE_SIZE]
+
+        resample_tensor = resample_range.clone().detach().to(device)
+        p0_sub = resample_tensor[prior_idx]
+        num_priors = p0_sub.shape[0]
+        p0_flat = p0_sub.repeat(batch_size, 1).view(-1, 1)
+
         loss_total = 0.0
         fair_reg_total = 0.0
 
@@ -99,7 +110,9 @@ def train_fair_mf_mpr(
             # evaluate all priors every step 
             user_emb_flat = current_user_embs.repeat_interleave(num_priors, dim=0)
 
-            s_hat_flat = sst_model(user_emb_flat, p0_flat)
+            with torch.no_grad():
+                s_hat_flat = sst_model(user_emb_flat, p0_flat)
+
             s_hat_all = s_hat_flat.view(batch_size, num_priors)
 
             y_hat_exp = y_hat.unsqueeze(1).expand(-1, num_priors)
@@ -147,8 +160,7 @@ def train_fair_mf_mpr(
                 for p in sst_model.parameters():
                     p.requires_grad = False
 
-        if epoch > 0 and not sst_frozen and (epoch % 30 == 0 or \
-        (naive_unfairness_test and naive_unfairness_test >= prev_naive_unfairness_test * 0.995)):
+        if epoch > 0 and not sst_frozen and (epoch % 30 == 0):
             print(f"\n[Adversarial Update] Refining SST on worst priors at epoch {epoch}...")
             
             # use fair diffs from last batch for refinement
@@ -197,8 +209,6 @@ def train_fair_mf_mpr(
             f"Worst prior: p={epoch_worst_prior:.3f}, "
             f"Fairness violation={epoch_worst_diff:.4f}"
         )
-        if epoch > 0:
-            prev_naive_unfairness_test = naive_unfairness_test
 
     # fallback in case no model reached rmse threshold
     if not achieve_rmse_thresh:

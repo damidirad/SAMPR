@@ -169,6 +169,7 @@ train_amortized_sst(
     alpha_max=0.6
 )
 
+# Verify SST performance after training
 print("\n[Calibration] Verifying Amortized SST Performance...")
 evaluate_amortized_sst(
     sst_model, 

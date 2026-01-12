@@ -19,8 +19,11 @@ def validate_fairness(model, df_val, df_sensitive_attr, s1_known, s0_known, devi
     with torch.no_grad():
         test_user_total = torch.tensor(np.array(df_val["user_id"])).to(device)
         test_item_total = torch.tensor(np.array(df_val["item_id"])).to(device)
-        pred_total = model(test_user_total, test_item_total)
-        pred_total = pred_total.cpu().detach()
+
+        # model outputs logits to work with bcelosswithlogits
+        logits_total = model(test_user_total, test_item_total)
+        pred_total = torch.sigmoid(logits_total).cpu().detach()
+        
         uniq_count= 0
         fairness_count = 0
         naive_fairness_dict = {i:[] for i in df_sensitive_attr["gender"].unique()}
@@ -50,8 +53,11 @@ def test_fairness(model, df_val, df_sensitive_attr, device):
     with torch.no_grad():
         test_user_total = torch.tensor(np.array(df_val["user_id"])).to(device)
         test_item_total = torch.tensor(np.array(df_val["item_id"])).to(device)
-        pred_total = model(test_user_total, test_item_total)
-        pred_total = pred_total.cpu().detach()
+
+        # model outputs logits to work with bcelosswithlogits
+        logits_total = model(test_user_total, test_item_total)
+        pred_total = torch.sigmoid(logits_total).cpu().detach()
+
         uniq_count= 0
         naive_fairness_dict = {i:[] for i in df_sensitive_attr["gender"].unique()}
         df_val_with_index = df_val.reset_index()

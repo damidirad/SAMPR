@@ -9,8 +9,6 @@ from fairness_training import train_fair_mf_mpr
 from collaborative_models import matrixFactorization
 from amortized_sst import AmortizedSST, train_amortized_sst, evaluate_amortized_sst
 
-# RETRAIN SST ON KNOWN WORST PRIOR EVERY 50 EPOCHS
-
 parser = argparse.ArgumentParser(description='fairRec')
 parser.add_argument('--gpu_id',
                         type=str,

@@ -140,7 +140,7 @@ def evaluate_amortized_sst(sst_model, mf_model, s0_test, s1_test, device):
         z_u = mf_model.user_emb(user_ids)
         
         print("\n[Calibration] Amortized SST Predictions under Different Priors:")
-        print("----------------------------------------------------------")
+        print("--------------------------------------------------------")
         for p in test_priors:
             preds = sst_model(z_u, p).view(-1)
             print(
@@ -148,7 +148,7 @@ def evaluate_amortized_sst(sst_model, mf_model, s0_test, s1_test, device):
                 f"| Mean (pred)={preds.mean().item():.3f} |"
                 f"| Std (pred)={preds.std().item():.3f} |"
             )
-        print("----------------------------------------------------------")
+        print("--------------------------------------------------------")
 
 def refine_sst(sst_model, mf_model, s0_known, s1_known, resample_range, fair_diffs, device, lr=1e-4):
     """

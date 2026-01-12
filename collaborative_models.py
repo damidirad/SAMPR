@@ -58,16 +58,15 @@ class matrixFactorization(nn.Module):
         self.item_emb.weight.data.uniform_(0,0.05)
         self.user_bias.weight.data.uniform_(-0.01,0.01)
         self.item_bias.weight.data.uniform_(-0.01,0.01)
-        self.out_act = nn.Sigmoid()
         
     def forward(self, u, v):
         U = self.user_emb(u)
         V = self.item_emb(v)
         b_u = self.user_bias(u).squeeze()
         b_v = self.item_bias(v).squeeze()
-        out = self.out_act((U*V).sum(1) +  b_u  + b_v)
-        return out
 
+        return (U * V).sum(1) + b_u + b_v
+    
     def no_act_forward(self, u, v):
         """
         This func is for no sigmoid inference

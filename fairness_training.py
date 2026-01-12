@@ -32,7 +32,7 @@ def train_fair_mf_mpr(
     warmup_epochs=20
 ):
     # binary cross entropy loss for ratings
-    criterion = nn.BCELoss()
+    criterion = nn.BCEWithLogitsLoss()
     # adam optimizer for model parameters
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     model.train()
@@ -56,7 +56,7 @@ def train_fair_mf_mpr(
 
     # subsample priors
     PRIOR_SUBSAMPLE_SIZE = 14
-    FULL_SWEEP_EVERY = 10 # epochs
+    FULL_SWEEP_EVERY = 1 # epochs
 
     epoch_worst_history = []
     epoch_prior_history = []
@@ -91,7 +91,7 @@ def train_fair_mf_mpr(
         epoch_worst_prior = None
 
         all_user_ids = torch.arange(num_users).to(device)
-        all_user_embs = model.user_emb(all_user_ids)       # compute embeddings once per epoch
+        all_user_embs = model.user_emb(all_user_ids).detach() # compute embeddings once per epoch
 
         # repeat embeddings for all priors
         all_user_emb_flat = all_user_embs.repeat_interleave(num_priors, dim=0)
@@ -115,15 +115,17 @@ def train_fair_mf_mpr(
                 train_ratings = train_ratings.unsqueeze(1)
 
             # forward pass through mf model
-            y_hat = model(train_user_input, train_item_input)
-            loss = criterion(y_hat.view(-1), train_ratings.view(-1))
+            y_logits = model(train_user_input, train_item_input)
+            loss = criterion(y_logits.view(-1), train_ratings.view(-1))
+
+            y_prob = torch.sigmoid(y_logits).view(-1)
 
             s_hat_all = all_s_hat_all[train_user_input].detach() # get precomputed sst outputs for current users
 
-            y_hat_exp = y_hat.unsqueeze(1).expand(-1, num_priors)
+            y_prob_exp = y_prob.unsqueeze(1).expand(-1, num_priors)
 
-            mu_1 = torch.sum(y_hat_exp * s_hat_all, dim=0) / (torch.sum(s_hat_all, dim=0) + eps)
-            mu_0 = torch.sum(y_hat_exp * (1 - s_hat_all), dim=0) / (torch.sum(1 - s_hat_all, dim=0) + eps)
+            mu_1 = torch.sum(y_prob_exp * s_hat_all, dim=0) / (torch.sum(s_hat_all, dim=0) + eps)
+            mu_0 = torch.sum(y_prob_exp * (1 - s_hat_all), dim=0) / (torch.sum(1 - s_hat_all, dim=0) + eps)
 
             fair_diffs = torch.abs(mu_1 - mu_0) / beta
 
@@ -131,7 +133,7 @@ def train_fair_mf_mpr(
 
             if batch_max_diff.item() > epoch_worst_diff:
                 epoch_worst_diff = batch_max_diff.item()
-                epoch_worst_prior = resample_range[batch_max_idx].item()
+                epoch_worst_prior = p0_sub[batch_max_idx].item()
                 epoch_worst_fair_diffs = fair_diffs.detach()
 
             # log-sum-exp (robust objective)
